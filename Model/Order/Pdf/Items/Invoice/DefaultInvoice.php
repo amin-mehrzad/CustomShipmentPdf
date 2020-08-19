@@ -3,12 +3,12 @@
  * Copyright © Magento, Inc. All rights reserved.
  * See COPYING.txt for license details.
  */
-namespace Kento\CustomPackingSlip\Model\Order\Pdf\Items\Shipment;
+namespace Kento\CustomInvoicePrint\Model\Order\Pdf\Items\Invoice;
 
 /**
- * Sales Order Shipment Pdf default items renderer
+ * Sales Order Invoice Pdf default items renderer
  */
-class DefaultShipment extends \Magento\Sales\Model\Order\Pdf\Items\AbstractItems
+class DefaultInvoice extends \Magento\Sales\Model\Order\Pdf\Items\AbstractItems
 {
     /**
      * Core string
@@ -17,8 +17,7 @@ class DefaultShipment extends \Magento\Sales\Model\Order\Pdf\Items\AbstractItems
      */
     protected $string;
 
-
-    /**
+        /**
      * @var \Magento\Framework\Api\SearchCriteriaBuilder
      */
     private $searchCriteriaBuilder;
@@ -41,8 +40,7 @@ class DefaultShipment extends \Magento\Sales\Model\Order\Pdf\Items\AbstractItems
     private $filterBuilder;
 
 
-    
-    
+
     /**
      * @param \Magento\Framework\Model\Context $context
      * @param \Magento\Framework\Registry $registry
@@ -65,15 +63,14 @@ class DefaultShipment extends \Magento\Sales\Model\Order\Pdf\Items\AbstractItems
         \Magento\Framework\Data\Collection\AbstractDb $resourceCollection = null,
 
         \Magento\Sales\Api\OrderItemRepositoryInterface $orderItemRepository,
-     \Magento\Framework\Api\SearchCriteriaBuilder $searchCriteriaBuilder,    
-     
-     \Magento\Framework\Api\FilterBuilder $filterBuilder,
-     \Magento\Framework\Api\Search\FilterGroupBuilder $filterGroupBuilder,
+        \Magento\Framework\Api\SearchCriteriaBuilder $searchCriteriaBuilder,    
+        
+        \Magento\Framework\Api\FilterBuilder $filterBuilder,
+        \Magento\Framework\Api\Search\FilterGroupBuilder $filterGroupBuilder,
 
         array $data = []
     ) {
         $this->string = $string;
-
         $this->orderItemRepository = $orderItemRepository;
        $this->searchCriteriaBuilder = $searchCriteriaBuilder;
 
@@ -99,29 +96,17 @@ class DefaultShipment extends \Magento\Sales\Model\Order\Pdf\Items\AbstractItems
      */
     public function draw()
     {
-
-    //     $nameFilter = $this->filterBuilder
-    //         ->setField('item_id')
-    //         ->setValue(1)
-    //         ->setConditionType('eq')
-    //         ->create();
-
-    //     $searchCriteria = $this->searchCriteriaBuilder->addFilters([$nameFilter]);
-    //    // echo '<pre>';
-    //    // die($searchCriteria);
-    //     $orderItemList = $this->orderItemRepository->getList($searchCriteria);
-
-    //     if($orderItemList->getTotalCount() >= 0)
-    //     {
-    //         foreach ($orderItemList->getItems() as $orderItem)
-    //         {
-    //             echo '<pre>';
-    //             print_r($orderItem->getData());
-    //         }
-    //     }
-
-
+        
+        $order = $this->getOrder();
         $item = $this->getItem();
+        $productId = $item->getData('product_id');
+        $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
+        $product = $objectManager->create('Magento\Catalog\Model\Product')->load($productId);
+        $productLocation = $product->getLocation();
+        $attr = $product->getResource()->getAttribute('location');
+        if ($attr->usesSource()) {
+           $optionText = $attr->getSource()->getOptionText($productLocation);
+        }
         $pdf = $this->getPdf();
         $page = $this->getPage();
         $lines = [];
@@ -132,7 +117,8 @@ class DefaultShipment extends \Magento\Sales\Model\Order\Pdf\Items\AbstractItems
 
         // draw Product name
         if($sku != '106891')
-            $lines[0] = [['text' => $this->string->split($item->getName(), 60, true, true), 'feed' => 110]];
+        $lines[0] = [['text' => $this->string->split($item->getName(), 35, true, true), 'feed' => 35]];
+
         else{
             //die(print_r($productOptions,true));
             $this->searchCriteriaBuilder->addFilter('item_id', $itemId , 'eq');
@@ -143,7 +129,7 @@ class DefaultShipment extends \Magento\Sales\Model\Order\Pdf\Items\AbstractItems
             $decodedResult=json_decode($productOptions);
            // die(serialize($decodedResult->info_buyRequest->options));
             // $lines[0] = [['text' => serialize($productOptions),'feed' => 130]];
-            $lines[0] = [['text' => $this->string->split($item->getName(), 60, true, true), 'feed' => 110]];
+            $lines[0] = [['text' => $this->string->split($item->getName(), 35, true, true), 'feed' => 35]];
 
            foreach ($decodedResult->info_buyRequest->options as $option => $optionValue) {
                 
@@ -159,82 +145,97 @@ class DefaultShipment extends \Magento\Sales\Model\Order\Pdf\Items\AbstractItems
             case "36" : $key="Pattern Theme"; break;  // pattern themes
             case "37" : $key="Initials"; break;
             default: $key=$option; break;
-        }
+            }
 
 
               //  draw options label
                 $lines[][] = [
-                    'text' => $this->string->split($this->filterManager->stripTags($key)." : " .$this->filterManager->stripTags($optionValue), 70, true, true),
+                    'text' => $this->string->split($this->filterManager->stripTags($key)." : " .$this->filterManager->stripTags($optionValue), 35, true, true),
                     'font' => 'italic',
-                    'feed' => 120,
+                    'feed' => 45,
                 ];
 
-                // $lines[][] = [
-                //     'text' => $this->string->split($this->filterManager->stripTags($optionValue), 70, true, true),
-                //     'font' => 'italic',
-                //     'feed' => strlen($this->filterManager->stripTags($key))+3,
-                // ];
-
-                // draw options value
-                // if ($optionValue !== null) {
-                //     $printValue = isset(
-                //         $option['print_value']
-                //     ) ? $option['print_value'] : $this->filterManager->stripTags(
-                //         $optionValue
-                //     );
-                //     $values = explode(', ', $printValue);
-                //     foreach ($values as $value) {
-                //         $lines[][] = ['text' => $this->string->split($value, 50, true, true), 'feed' => 115];
-                //     }
-                // }
            }
         }
-           
-        // draw QTY
-        $lines[0][] = ['text' => $item->getQty() * 1, 'feed' => 35];
-        
-        // draw Pulled
-        $lines[0][] = ['text' => $this->string->split('[  ]', 60, true, true), 'feed' => 75];
-       
-              
-        // draw Location
-        $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
-        $product = $objectManager->get('Magento\Catalog\Model\Product')->load($item->getProductId());
-        $lines[0][] = ['text' => $this->string->split($product->getAttributeText('location'), 60, true, true), 'feed' => 395];
-
         // draw SKU
         $lines[0][] = [
-            'text' => $this->string->split($this->getSku($item), 25),
-            'feed' => 565,
+            'text' => $this->string->split($this->getSku($item), 17),
+            'feed' => 225,
+            'align' => 'right',
+        ];
+        
+        // draw Location
+        $lines[0][] = [
+            'text' => $optionText,
+            'feed' => 290,
             'align' => 'right',
         ];
 
-        // // Custom options
-        // $options = $this->getItemOptions();
-        // if ($options) {
-        //     foreach ($options as $option) {
-                
-        //         // draw options label
-        //         $lines[][] = [
-        //             'text' => $this->string->split($this->filterManager->stripTags($option['label']), 70, true, true),
-        //             'font' => 'italic',
-        //             'feed' => 110,
-        //         ];
+        // draw QTY
+        $lines[0][] = ['text' => $item->getQty() * 1, 'feed' => 435, 'align' => 'right'];
 
-        //         // draw options value
-        //         if ($option['value'] !== null) {
-        //             $printValue = isset(
-        //                 $option['print_value']
-        //             ) ? $option['print_value'] : $this->filterManager->stripTags(
-        //                 $option['value']
-        //             );
-        //             $values = explode(', ', $printValue);
-        //             foreach ($values as $value) {
-        //                 $lines[][] = ['text' => $this->string->split($value, 50, true, true), 'feed' => 115];
-        //             }
-        //         }
-        //     }
-        // }
+        // draw item Prices
+        $i = 0;
+        $prices = $this->getItemPricesForDisplay();
+        $feedPrice = 375;
+        $feedSubtotal = $feedPrice + 190;
+        foreach ($prices as $priceData) {
+            if (isset($priceData['label'])) {
+                // draw Price label
+                $lines[$i][] = ['text' => $priceData['label'], 'feed' => $feedPrice, 'align' => 'right'];
+                // draw Subtotal label
+                $lines[$i][] = ['text' => $priceData['label'], 'feed' => $feedSubtotal, 'align' => 'right'];
+                $i++;
+            }
+            // draw Price
+            $lines[$i][] = [
+                'text' => $priceData['price'],
+                'feed' => $feedPrice,
+                'font' => 'bold',
+                'align' => 'right',
+            ];
+            // draw Subtotal
+            $lines[$i][] = [
+                'text' => $priceData['subtotal'],
+                'feed' => $feedSubtotal,
+                'font' => 'bold',
+                'align' => 'right',
+            ];
+            $i++;
+        }
+
+        // draw Tax
+        $lines[0][] = [
+            'text' => $order->formatPriceTxt($item->getTaxAmount()),
+            'feed' => 495,
+            'font' => 'bold',
+            'align' => 'right',
+        ];
+
+        // custom options
+        $options = $this->getItemOptions();
+        if ($options) {
+            foreach ($options as $option) {
+                // draw options label
+                $lines[][] = [
+                    'text' => $this->string->split($this->filterManager->stripTags($option['label']), 40, true, true),
+                    'font' => 'italic',
+                    'feed' => 35,
+                ];
+
+                if ($option['value']) {
+                    if (isset($option['print_value'])) {
+                        $printValue = $option['print_value'];
+                    } else {
+                        $printValue = $this->filterManager->stripTags($option['value']);
+                    }
+                    $values = explode(', ', $printValue);
+                    foreach ($values as $value) {
+                        $lines[][] = ['text' => $this->string->split($value, 30, true, true), 'feed' => 40];
+                    }
+                }
+            }
+        }
 
         $lineBlock = ['lines' => $lines, 'height' => 20];
 
